@@ -28,10 +28,18 @@ FcitxModule::FcitxModule(QObject *parent, const QVariantList &args)
       imConfig_(new IMConfig(dbus_, IMConfig::Flatten, this)),
       layoutProvider_(new LayoutProvider(dbus_, this)),
       addonModel_(new FlatAddonModel(this)),
-      addonProxyModel_(new AddonProxyModel(this)) {
-    qmlRegisterAnonymousType<FilteredIMModel>("", 1);
-    qmlRegisterAnonymousType<IMProxyModel>("", 1);
-    qmlRegisterAnonymousType<LanguageModel>("", 1);
+      addonProxyModel_(new AddonProxyModel(this))
+{
+
+    //@x 20201003
+//    qmlRegisterAnonymousType<FilteredIMModel>("", 1);
+//    qmlRegisterAnonymousType<IMProxyModel>("", 1);
+//    qmlRegisterAnonymousType<LanguageModel>("", 1);
+
+    qmlRegisterType<FilteredIMModel>("XX", 1, 0, "X1");
+    qmlRegisterType<IMProxyModel>("XX", 1, 0, "X2");
+    qmlRegisterType<LanguageModel>("XX", 1, 0, "X3");
+
 
     KAboutData *about =
         new KAboutData("org.fcitx.fcitx5.kcm", i18n("Fcitx 5"), PROJECT_VERSION,
@@ -49,9 +57,13 @@ FcitxModule::FcitxModule(QObject *parent, const QVariantList &args)
             &FcitxModule::handleAvailabilityChanged);
 
     connect(imConfig_, &IMConfig::changed, this,
-            [this]() { setNeedsSave(true); });
+    [this]() { setNeedsSave(true); }); \
+
+
+
+
     connect(addonModel_, &FlatAddonModel::changed, this,
-            [this]() { setNeedsSave(true); });
+    [this]() { setNeedsSave(true); });
 
     handleAvailabilityChanged(dbus_->available());
 
@@ -63,7 +75,7 @@ FcitxModule::FcitxModule(QObject *parent, const QVariantList &args)
                                                XKB_KEYMAP_COMPILE_NO_FLAGS));
     xkbState_.reset(xkb_state_new(xkbKeymap_.get()));
 
-    connect(this, &ConfigModule::pagePushed, this, [this](QQuickItem *page) {
+    connect(this, &ConfigModule::pagePushed, this, [this](QQuickItem * page) {
         pages_[currentIndex() + 1] = page;
         if (page->property("needsSave").isValid()) {
             connect(page, SIGNAL(needsSaveChanged()), this,
@@ -76,7 +88,8 @@ FcitxModule::~FcitxModule() {}
 
 void FcitxModule::pageNeedsSaveChanged() { setNeedsSave(true); }
 
-void FcitxModule::load() {
+void FcitxModule::load()
+{
     imConfig_->load();
     for (const auto &page : pages_) {
         if (page && page->property("needsSave").isValid()) {
@@ -86,7 +99,8 @@ void FcitxModule::load() {
     setNeedsSave(false);
 }
 
-void FcitxModule::save() {
+void FcitxModule::save()
+{
     imConfig_->save();
     for (const auto &page : pages_) {
         if (page && page->property("needsSave").isValid()) {
@@ -95,7 +109,8 @@ void FcitxModule::save() {
     }
 }
 
-QVariant decomposeDBusVariant(const QVariant &v) {
+QVariant decomposeDBusVariant(const QVariant &v)
+{
     QVariantMap map;
     if (v.canConvert<QDBusArgument>()) {
         auto argument = qvariant_cast<QDBusArgument>(v);
@@ -111,7 +126,8 @@ QVariant decomposeDBusVariant(const QVariant &v) {
 
 void configOptionToVariant(QVariantList &options,
                            const FcitxQtConfigOption &option,
-                           const QVariantMap &typeMap) {
+                           const QVariantMap &typeMap)
+{
     if (typeMap.contains(option.type())) {
         // Expand the nested type.
         // Add a section title.
@@ -150,7 +166,8 @@ void configOptionToVariant(QVariantList &options,
 }
 
 QVariantList configTypeToVariant(const FcitxQtConfigType &type,
-                                 const QVariantMap &typeMap) {
+                                 const QVariantMap &typeMap)
+{
     QVariantList options;
     for (const auto &option : type.options()) {
         configOptionToVariant(options, option, typeMap);
@@ -158,68 +175,72 @@ QVariantList configTypeToVariant(const FcitxQtConfigType &type,
     return options;
 }
 
-void FcitxModule::pushConfigPage(const QString &title, const QString &uri) {
+void FcitxModule::pushConfigPage(const QString &title, const QString &uri)
+{
     if (!dbus_->controller()) {
         return;
     }
     auto call = dbus_->controller()->GetConfig(uri);
     auto watcher = new QDBusPendingCallWatcher(call, this);
     connect(watcher, &QDBusPendingCallWatcher::finished, this,
-            [this, uri, title](QDBusPendingCallWatcher *watcher) {
-                watcher->deleteLater();
-                QDBusPendingReply<QDBusVariant, FcitxQtConfigTypeList> reply =
-                    *watcher;
-                if (!reply.isValid()) {
-                    return;
-                }
-                auto configTypes = reply.argumentAt<1>();
-                if (configTypes.empty()) {
-                    return;
-                }
-                QVariantMap map;
-                QVariantMap typeMap;
-                map["uri"] = uri;
-                map["rawValue"] =
-                    decomposeDBusVariant(reply.argumentAt<0>().variant());
-                map["typeName"] = configTypes[0].name();
+    [this, uri, title](QDBusPendingCallWatcher * watcher) {
+        watcher->deleteLater();
+        QDBusPendingReply<QDBusVariant, FcitxQtConfigTypeList> reply =
+            *watcher;
+        if (!reply.isValid()) {
+            return;
+        }
+        auto configTypes = reply.argumentAt<1>();
+        if (configTypes.empty()) {
+            return;
+        }
+        QVariantMap map;
+        QVariantMap typeMap;
+        map["uri"] = uri;
+        map["rawValue"] =
+            decomposeDBusVariant(reply.argumentAt<0>().variant());
+        map["typeName"] = configTypes[0].name();
 
-                // We do a revsere order.
-                for (const auto &configType :
-                     MakeIterRange(configTypes.rbegin(), configTypes.rend())) {
-                    typeMap[configType.name()] =
-                        configTypeToVariant(configType, typeMap);
-                }
-                map["typeMap"] = typeMap;
-                map["title"] = title;
-                push("ConfigPage.qml", map);
-            });
+        // We do a revsere order.
+        for (const auto &configType :
+                MakeIterRange(configTypes.rbegin(), configTypes.rend())) {
+            typeMap[configType.name()] =
+                configTypeToVariant(configType, typeMap);
+        }
+        map["typeMap"] = typeMap;
+        map["title"] = title;
+        push("ConfigPage.qml", map);
+    });
 }
 
-void FcitxModule::handleAvailabilityChanged(bool avail) {
+void FcitxModule::handleAvailabilityChanged(bool avail)
+{
     if (avail) {
         loadAddon();
     }
     emit availabilityChanged(avail);
 }
 
-void FcitxModule::loadAddon() {
+void FcitxModule::loadAddon()
+{
     if (!dbus_->controller()) {
         return;
     }
     auto call = dbus_->controller()->GetAddonsV2();
     auto callwatcher = new QDBusPendingCallWatcher(call, this);
     connect(callwatcher, &QDBusPendingCallWatcher::finished, this,
-            [this](QDBusPendingCallWatcher *watcher) {
-                QDBusPendingReply<FcitxQtAddonInfoV2List> addons = *watcher;
-                watcher->deleteLater();
-                if (addons.isValid()) {
-                    addonModel_->setAddons(addons.value());
-                    addonProxyModel_->sort(0);
-                }
-            });
+    [this](QDBusPendingCallWatcher * watcher) {
+        QDBusPendingReply<FcitxQtAddonInfoV2List> addons = *watcher;
+        watcher->deleteLater();
+        if (addons.isValid()) {
+            addonModel_->setAddons(addons.value());
+            addonProxyModel_->sort(0);
+        }
+    });
 }
 
-void FcitxModule::saveAddon() {
+void FcitxModule::saveAddon()
+{
     if (!dbus_->controller()) {
         return;
     }
@@ -242,7 +263,8 @@ void FcitxModule::saveAddon() {
     }
 }
 
-void FcitxModule::launchExternal(const QString &uri) {
+void FcitxModule::launchExternal(const QString &uri)
+{
     if (uri.startsWith("fcitx://config/addon/")) {
         auto wrapperPath =
             stringutils::joinPath(StandardPath::global().fcitxPath("libdir"),
@@ -282,20 +304,22 @@ void FcitxModule::launchExternal(const QString &uri) {
     }
 }
 
-void FcitxModule::grabKeyboard(QQuickItem *item) {
+void FcitxModule::grabKeyboard(QQuickItem *item)
+{
     item->window()->setKeyboardGrabEnabled(true);
     item->installEventFilter(this);
 }
 
-void FcitxModule::ungrabKeyboard(QQuickItem *item) {
+void FcitxModule::ungrabKeyboard(QQuickItem *item)
+{
     item->window()->setKeyboardGrabEnabled(false);
     item->removeEventFilter(this);
 }
 
-bool FcitxModule::eventFilter(QObject *, QEvent *event) {
+bool FcitxModule::eventFilter(QObject *, QEvent *event)
+{
     if (event->type() == QEvent::KeyPress ||
-        event->type() == QEvent::KeyRelease ||
-        event->type() == QEvent::ShortcutOverride) {
+            event->type() == QEvent::KeyRelease) {
         auto keyEvent = static_cast<QKeyEvent *>(event);
         key_ = Key(static_cast<KeySym>(keyEvent->nativeVirtualKey()),
                    KeyStates(keyEvent->nativeModifiers()),
@@ -306,7 +330,8 @@ bool FcitxModule::eventFilter(QObject *, QEvent *event) {
 
 QString FcitxModule::eventToString(int keyQt, int modifiers,
                                    quint32 nativeScanCode, const QString &text,
-                                   bool keyCode) {
+                                   bool keyCode)
+{
     int sym;
     unsigned int states;
 
@@ -332,7 +357,7 @@ QString FcitxModule::eventToString(int keyQt, int modifiers,
             key = Key::fromKeyCode(nativeScanCode, KeyStates(states));
         } else {
             if (keyQt == Qt::Key_Shift || keyQt == Qt::Key_Super_L ||
-                keyQt == Qt::Key_Alt || keyQt == Qt::Key_Control) {
+                    keyQt == Qt::Key_Alt || keyQt == Qt::Key_Control) {
                 auto xkbsym =
                     xkb_state_key_get_one_sym(xkbState_.get(), nativeScanCode);
                 if (keyQt == Qt::Key_Shift && xkbsym == XKB_KEY_Shift_R) {
@@ -350,7 +375,7 @@ QString FcitxModule::eventToString(int keyQt, int modifiers,
             }
             key = Key(static_cast<KeySym>(sym),
                       KeyStates(states) |
-                          Key::keySymToStates(static_cast<KeySym>(sym)),
+                      Key::keySymToStates(static_cast<KeySym>(sym)),
                       nativeScanCode);
         }
     }
@@ -362,12 +387,14 @@ QString FcitxModule::eventToString(int keyQt, int modifiers,
     return QString();
 }
 
-QString FcitxModule::localizedKeyString(const QString &str) {
+QString FcitxModule::localizedKeyString(const QString &str)
+{
     Key key(str.toStdString());
     return QString::fromStdString(key.toString(KeyStringFormat::Localized));
 }
 
-void FcitxModule::saveConfig(const QString &uri, const QVariant &value) {
+void FcitxModule::saveConfig(const QString &uri, const QVariant &value)
+{
     if (!dbus_->controller()) {
         return;
     }
@@ -376,7 +403,8 @@ void FcitxModule::saveConfig(const QString &uri, const QVariant &value) {
     dbus_->controller()->SetConfig(uri, var);
 }
 
-QQuickItem *FcitxModule::pageNeedsSave(int idx) {
+QQuickItem *FcitxModule::pageNeedsSave(int idx)
+{
     if (auto page = pages_.value(idx)) {
         auto value = page->property("needsSave");
         if (value.isValid() && value.toBool()) {
@@ -386,7 +414,8 @@ QQuickItem *FcitxModule::pageNeedsSave(int idx) {
     return nullptr;
 }
 
-void FcitxModule::defaults() {
+void FcitxModule::defaults()
+{
     for (const auto &page : pages_) {
         if (page) {
             QMetaObject::invokeMethod(page, "defaults", Qt::DirectConnection);
@@ -394,24 +423,27 @@ void FcitxModule::defaults() {
     }
 }
 
-void FcitxModule::runFcitx() {
+void FcitxModule::runFcitx()
+{
     QProcess::startDetached(
         QString::fromStdString(StandardPath::fcitxPath("bindir", "fcitx5")),
         QStringList());
 }
 
-void FcitxModule::fixLayout() {
+void FcitxModule::fixLayout()
+{
     const auto &imEntries = imConfig_->imEntries();
     if (imEntries.size() > 0 &&
-        imEntries[0].key() !=
+            imEntries[0].key() !=
             QString("keyboard-%0").arg(imConfig_->defaultLayout()) &&
-        imEntries[0].key().startsWith("keyboard-")) {
+            imEntries[0].key().startsWith("keyboard-")) {
         auto layoutString = imEntries[0].key().mid(9);
         imConfig_->setDefaultLayout(layoutString);
     }
 }
 
-void FcitxModule::fixInputMethod() {
+void FcitxModule::fixInputMethod()
+{
     auto imname = QString("keyboard-%0").arg(imConfig_->defaultLayout());
     FcitxQtStringKeyValue imEntry;
     int i = 0;

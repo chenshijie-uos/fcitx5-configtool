@@ -7,8 +7,9 @@
 #include "font.h"
 #include <QMap>
 
-QFont fcitx::kcm::parseFont(const QString &string) {
-    QStringList list = string.split(" ", Qt::SkipEmptyParts);
+QFont fcitx::kcm::parseFont(const QString &string)
+{
+    QStringList list = string.split(" ", QString::SkipEmptyParts);
     int size = 9; // Default size.
     if (!list.empty()) {
         bool ok = false;
@@ -43,7 +44,8 @@ QFont fcitx::kcm::parseFont(const QString &string) {
         {"Extra-Black", QFont::Black},
     };
     const QMap<QString, QFont::Style> strToStyle = {
-        {"Italic", QFont::StyleItalic}, {"Oblique", QFont::StyleOblique}};
+        {"Italic", QFont::StyleItalic}, {"Oblique", QFont::StyleOblique}
+    };
     while (!list.empty()) {
         if (strToWeight.contains(list.back())) {
             weight = strToWeight.value(list.back(), QFont::Normal);
@@ -64,7 +66,8 @@ QFont fcitx::kcm::parseFont(const QString &string) {
     return font;
 }
 
-QString fcitx::kcm::fontToString(const QFont &font) {
+QString fcitx::kcm::fontToString(const QFont &font)
+{
     QString style;
     QStringList styles;
     switch (font.style()) {
@@ -78,9 +81,9 @@ QString fcitx::kcm::fontToString(const QFont &font) {
         break;
     }
 #define CASE_WEIGHT(WEIGHT, WEIGHT_STR)                                        \
-    case QFont::WEIGHT:                                                        \
-        styles << WEIGHT_STR;                                                  \
-        break;
+case QFont::WEIGHT:                                                        \
+    styles << WEIGHT_STR;                                                  \
+    break;
     // Use the string accepted by pango.
     switch (font.weight()) {
         CASE_WEIGHT(Thin, "Thin")
@@ -96,6 +99,6 @@ QString fcitx::kcm::fontToString(const QFont &font) {
     }
     style = styles.join(" ");
     return QString("%1%2%3 %4")
-        .arg(font.family(), (!style.isEmpty() ? " " : ""), style,
-             QString::number(font.pointSize()));
+           .arg(font.family(), (!style.isEmpty() ? " " : ""), style,
+                QString::number(font.pointSize()));
 }

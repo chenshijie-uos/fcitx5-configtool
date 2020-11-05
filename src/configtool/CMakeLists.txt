@@ -10,7 +10,14 @@ set_target_properties(fcitx5-config-qt
     AUTOUIC TRUE
     AUTOUIC_OPTIONS "-tr=fcitx::tr2fcitx;--include=fcitxqti18nhelper.h")
 
+target_include_directories(fcitx5-config-qt PUBLIC
+    ${DtkWidget_INCLUDE_DIRS}
+    ${DtkCore_INCLUDE_DIRS}
+)
+
 target_link_libraries(fcitx5-config-qt
+    ${DtkWidget_LIBRARIES}
+    ${DtkCore_LIBRARIES}
     Qt5::Widgets configwidgetslib
 )
 

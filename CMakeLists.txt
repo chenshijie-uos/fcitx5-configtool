@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.3 FATAL_ERROR)
-project(kcm-fcitx VERSION 0.5.99)
+project(kcm-fcitx-5113 VERSION 0.5.99)
 
-set(QT_MIN_VERSION "5.14.0")
+set(QT_MIN_VERSION "5.11.3")
 find_package(ECM 1.0.0 REQUIRED NO_MODULE)
 set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(KDEInstallDirs)
@@ -13,13 +13,18 @@ include(GenerateExportHeader)
 option(ENABLE_KCM "Enable KDE Config Module" On)
 option(ENABLE_CONFIG_QT "Enable fcitx5-config-qt" On)
 option(ENABLE_TEST "Enable test" Off)
+option(ENABLE_DTK "Enable dtk" ON)
 add_definitions(-DTRANSLATION_DOMAIN=\"org.fcitx.fcitx5.kcm\")
 add_definitions(-DFCITX_GETTEXT_DOMAIN=\"fcitx5-configtool\")
 
 find_package(Qt5 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS Core Gui Widgets X11Extras Concurrent)
 
 if (ENABLE_CONFIG_QT)
-    find_package(KF5ItemViews REQUIRED)
+    find_package(KF5 REQUIRED COMPONENTS
+        WidgetsAddons
+        ItemViews
+    )
+    find_package(Fcitx5Qt5WidgetsAddons REQUIRED)
 endif()
 
 if (ENABLE_KCM)
@@ -31,12 +36,15 @@ if (ENABLE_KCM)
     find_package(XKBCommon REQUIRED COMPONENTS XKBCommon)
 endif()
 
+if (ENABLE_DTK)
+   find_package(DtkWidget REQUIRED)
+   find_package(DtkCore REQUIRED)
+endif()
+
 find_package(Fcitx5Core REQUIRED)
 find_package(Fcitx5Config REQUIRED)
 find_package(Fcitx5Utils REQUIRED)
 find_package(Fcitx5Qt5DBusAddons REQUIRED)
-find_package(Fcitx5Qt5WidgetsAddons REQUIRED)
-find_package(KF5WidgetsAddons REQUIRED)
 find_package(IsoCodes REQUIRED)
 kde_enable_exceptions()
 

@@ -14,6 +14,8 @@
 #include <QSet>
 #include <QVariant>
 #include <fcitx-utils/standardpath.h>
+//@x 20201003
+#include <QVector>
 
 namespace fcitx {
 
@@ -22,61 +24,63 @@ MigratorFactoryPrivate::MigratorFactoryPrivate(MigratorFactory *factory)
 
 MigratorFactoryPrivate::~MigratorFactoryPrivate() {}
 
-void MigratorFactoryPrivate::scan() {
-    for (const auto &staticPlugin : QPluginLoader::staticPlugins()) {
+void MigratorFactoryPrivate::scan()
+{
+    for (const QStaticPlugin &staticPlugin : QPluginLoader::staticPlugins()) {
         auto metadata = staticPlugin.metaData();
         if (metadata.value("IID") !=
-            QLatin1String(FcitxMigratorFactoryInterface_iid)) {
+                QLatin1String(FcitxMigratorFactoryInterface_iid)) {
             continue;
         }
         auto pluginMetadata = metadata.value("MetaData").toObject();
         auto addon = metadata.value("addon").toVariant().toString();
         if (auto plugin = qobject_cast<FcitxMigratorFactoryPlugin *>(
-                staticPlugin.instance())) {
+                              staticPlugin.instance())) {
             plugins_.emplace_back(plugin, addon);
         }
     }
 
     StandardPath::global().scanFiles(
         StandardPath::Type::Addon, "qt5",
-        [this](const std::string &path, const std::string &dirPath, bool user) {
-            do {
-                if (user) {
-                    break;
-                }
+    [this](const std::string & path, const std::string & dirPath, bool user) {
+        do {
+            if (user) {
+                break;
+            }
 
-                QDir dir(QString::fromLocal8Bit(dirPath.c_str()));
-                QFileInfo fi(
-                    dir.filePath(QString::fromLocal8Bit(path.c_str())));
+            QDir dir(QString::fromLocal8Bit(dirPath.c_str()));
+            QFileInfo fi(
+                dir.filePath(QString::fromLocal8Bit(path.c_str())));
 
-                QString filePath = fi.filePath(); // file name with path
-                QString fileName = fi.fileName(); // just file name
+            QString filePath = fi.filePath(); // file name with path
+            QString fileName = fi.fileName(); // just file name
 
-                if (!QLibrary::isLibrary(filePath)) {
-                    break;
-                }
+            if (!QLibrary::isLibrary(filePath)) {
+                break;
+            }
 
-                QPluginLoader *loader = new QPluginLoader(filePath, this);
-                if (loader->metaData().value("IID") !=
+            QPluginLoader *loader = new QPluginLoader(filePath, this);
+            if (loader->metaData().value("IID") !=
                     QLatin1String(FcitxMigratorFactoryInterface_iid)) {
-                    delete loader;
-                    continue;
-                }
-                auto metadata = loader->metaData().value("MetaData").toObject();
-                auto addon = metadata.value("addon").toVariant().toString();
-                if (auto plugin = qobject_cast<FcitxMigratorFactoryPlugin *>(
-                        loader->instance())) {
-                    plugins_.emplace_back(plugin, addon);
-                } else {
-                    delete loader;
-                }
-            } while (0);
-            return true;
-        });
+                delete loader;
+                continue;
+            }
+            auto metadata = loader->metaData().value("MetaData").toObject();
+            auto addon = metadata.value("addon").toVariant().toString();
+            if (auto plugin = qobject_cast<FcitxMigratorFactoryPlugin *>(
+                                  loader->instance())) {
+                plugins_.emplace_back(plugin, addon);
+            } else {
+                delete loader;
+            }
+        } while (0);
+        return true;
+    });
 }
 
 MigratorFactory::MigratorFactory(QObject *parent)
-    : QObject(parent), d_ptr(new MigratorFactoryPrivate(this)) {
+    : QObject(parent), d_ptr(new MigratorFactoryPrivate(this))
+{
     Q_D(MigratorFactory);
     d->scan();
 }
@@ -84,7 +88,8 @@ MigratorFactory::MigratorFactory(QObject *parent)
 MigratorFactory::~MigratorFactory() {}
 
 std::vector<std::unique_ptr<Migrator>>
-MigratorFactory::list(const QSet<QString> &addons) const {
+                                    MigratorFactory::list(const QSet<QString> &addons) const
+{
     Q_D(const MigratorFactory);
     std::vector<std::unique_ptr<Migrator>> result;
     for (const auto &[plugin, addon] : d->plugins_) {

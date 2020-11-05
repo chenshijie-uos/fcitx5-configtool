@@ -25,7 +25,8 @@ enum {
 
 enum { LanguageType, IMType };
 
-class IMConfigModelInterface {
+class IMConfigModelInterface
+{
 public:
     virtual ~IMConfigModelInterface() = default;
     virtual void
@@ -33,7 +34,8 @@ public:
                       const FcitxQtStringKeyValueList &enabledIMs) = 0;
 };
 
-class CategorizedItemModel : public QAbstractItemModel {
+class CategorizedItemModel : public QAbstractItemModel
+{
     Q_OBJECT
 public:
     CategorizedItemModel(QObject *parent = 0);
@@ -54,7 +56,8 @@ protected:
 };
 
 class AvailIMModel : public CategorizedItemModel,
-                     public IMConfigModelInterface {
+    public IMConfigModelInterface
+{
     Q_OBJECT
 public:
     AvailIMModel(QObject *parent = 0);
@@ -64,7 +67,8 @@ public:
 
 protected:
     int listSize() const override { return filteredIMEntryList.size(); }
-    int subListSize(int idx) const override {
+    int subListSize(int idx) const override
+    {
         return filteredIMEntryList[idx].second.size();
     }
     QVariant dataForItem(const QModelIndex &index, int role) const override;
@@ -75,17 +79,19 @@ private:
 };
 
 class IMProxyModel : public QSortFilterProxyModel,
-                     public IMConfigModelInterface {
+    public IMConfigModelInterface
+{
     Q_OBJECT
     Q_PROPERTY(QString filterText READ filterText WRITE setFilterText);
     Q_PROPERTY(bool showOnlyCurrentLanguage READ showOnlyCurrentLanguage WRITE
-                   setShowOnlyCurrentLanguage);
+               setShowOnlyCurrentLanguage);
 
 public:
     IMProxyModel(QObject *parent = nullptr);
 
     // Forward role names.
-    QHash<int, QByteArray> roleNames() const override {
+    QHash<int, QByteArray> roleNames() const override
+    {
         if (sourceModel()) {
             return sourceModel()->roleNames();
         }
@@ -119,12 +125,16 @@ private:
 };
 
 class FilteredIMModel : public QAbstractListModel,
-                        public IMConfigModelInterface {
+    public IMConfigModelInterface
+{
     Q_OBJECT
     Q_PROPERTY(int count READ count);
 
 public:
     enum Mode { CurrentIM, AvailIM };
+    //@x 20201003
+    FilteredIMModel(QObject *parent = nullptr): QAbstractListModel(parent) {}
+
 
     FilteredIMModel(Mode mode, QObject *parent = nullptr);
     QVariant data(const QModelIndex &index,
@@ -137,7 +147,8 @@ public:
                       const FcitxQtStringKeyValueList &enabledIMs) override;
 
     int count() const { return rowCount(); }
-    Q_INVOKABLE QString imAt(int idx) const {
+    Q_INVOKABLE QString imAt(int idx) const
+    {
         return index(idx).data(FcitxIMUniqueNameRole).toString();
     }
 public slots:

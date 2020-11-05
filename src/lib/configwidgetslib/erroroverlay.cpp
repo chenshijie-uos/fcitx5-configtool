@@ -14,7 +14,8 @@ namespace kcm {
 
 ErrorOverlay::ErrorOverlay(DBusProvider *dbus, QWidget *parent)
     : QWidget(parent), ui_(std::make_unique<Ui::ErrorOverlay>()),
-      baseWidget_(parent) {
+      baseWidget_(parent)
+{
     ui_->setupUi(this);
     setVisible(false);
 
@@ -30,7 +31,8 @@ ErrorOverlay::ErrorOverlay(DBusProvider *dbus, QWidget *parent)
 
 ErrorOverlay::~ErrorOverlay() {}
 
-void ErrorOverlay::availabilityChanged(bool avail) {
+void ErrorOverlay::availabilityChanged(bool avail)
+{
     const bool newEnabled = !avail;
     if (enabled_ != newEnabled) {
         enabled_ = newEnabled;
@@ -41,7 +43,8 @@ void ErrorOverlay::availabilityChanged(bool avail) {
     }
 }
 
-void ErrorOverlay::reposition() {
+void ErrorOverlay::reposition()
+{
     if (!baseWidget_) {
         return;
     }
@@ -66,11 +69,12 @@ void ErrorOverlay::reposition() {
     raise();
 }
 
-bool ErrorOverlay::eventFilter(QObject *object, QEvent *event) {
+bool ErrorOverlay::eventFilter(QObject *object, QEvent *event)
+{
     if (enabled_ && object == baseWidget_ &&
-        (event->type() == QEvent::Move || event->type() == QEvent::Resize ||
-         event->type() == QEvent::Show || event->type() == QEvent::Hide ||
-         event->type() == QEvent::ParentChange)) {
+            (event->type() == QEvent::Move || event->type() == QEvent::Resize ||
+             event->type() == QEvent::Show || event->type() == QEvent::Hide ||
+             event->type() == QEvent::ParentChange)) {
         reposition();
     }
     return QWidget::eventFilter(object, event);

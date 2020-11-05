@@ -12,14 +12,18 @@
 #include "dbusprovider.h"
 #include "erroroverlay.h"
 #include "impage.h"
-#include "ui_mainwindow.h"
 #include <QAbstractButton>
-#include <QMainWindow>
+#include <QTabWidget>
+#include <QDialogButtonBox>
+#include <DMainWindow>
+
+DWIDGET_USE_NAMESPACE
 
 namespace fcitx {
 namespace kcm {
 
-class MainWindow : public QMainWindow, public Ui::MainWindow {
+class MainWindow : public DMainWindow
+{
     Q_OBJECT
 public:
     explicit MainWindow(QWidget *parent = nullptr);
@@ -34,12 +38,15 @@ private slots:
     void clicked(QAbstractButton *button);
 
 private:
+    void initUI();
     void handleChanged(bool state);
     DBusProvider *dbus_;
     ErrorOverlay *errorOverlay_;
     IMPage *impage_;
     AddonSelector *addonPage_;
     ConfigWidget *configPage_;
+    QTabWidget *pageWidget;
+    QDialogButtonBox *buttonBox;
 };
 } // namespace kcm
 } // namespace fcitx

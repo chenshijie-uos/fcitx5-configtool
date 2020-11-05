@@ -15,7 +15,8 @@ namespace kcm {
 CategorizedItemModel::CategorizedItemModel(QObject *parent)
     : QAbstractItemModel(parent) {}
 
-int CategorizedItemModel::rowCount(const QModelIndex &parent) const {
+int CategorizedItemModel::rowCount(const QModelIndex &parent) const
+{
     if (!parent.isValid()) {
         return listSize();
     }
@@ -33,7 +34,8 @@ int CategorizedItemModel::rowCount(const QModelIndex &parent) const {
 
 int CategorizedItemModel::columnCount(const QModelIndex &) const { return 1; }
 
-QModelIndex CategorizedItemModel::parent(const QModelIndex &child) const {
+QModelIndex CategorizedItemModel::parent(const QModelIndex &child) const
+{
     if (!child.isValid()) {
         return QModelIndex();
     }
@@ -47,7 +49,8 @@ QModelIndex CategorizedItemModel::parent(const QModelIndex &child) const {
 }
 
 QModelIndex CategorizedItemModel::index(int row, int column,
-                                        const QModelIndex &parent) const {
+                                        const QModelIndex &parent) const
+{
     // return language index
     if (!parent.isValid()) {
         if (column > 0 || row >= listSize()) {
@@ -59,14 +62,15 @@ QModelIndex CategorizedItemModel::index(int row, int column,
 
     // return im index
     if (parent.column() > 0 || parent.row() >= listSize() ||
-        row >= subListSize(parent.row())) {
+            row >= subListSize(parent.row())) {
         return QModelIndex();
     }
 
     return createIndex(row, column, parent.row() + 1);
 }
 
-QVariant CategorizedItemModel::data(const QModelIndex &index, int role) const {
+QVariant CategorizedItemModel::data(const QModelIndex &index, int role) const
+{
     if (!index.isValid()) {
         return QVariant();
     }
@@ -80,7 +84,7 @@ QVariant CategorizedItemModel::data(const QModelIndex &index, int role) const {
     }
 
     if (index.column() > 0 || index.parent().column() > 0 ||
-        index.parent().row() >= listSize()) {
+            index.parent().row() >= listSize()) {
         return QVariant();
     }
 
@@ -90,7 +94,8 @@ QVariant CategorizedItemModel::data(const QModelIndex &index, int role) const {
     return dataForItem(index, role);
 }
 
-static QString languageName(const QString &langCode) {
+static QString languageName(const QString &langCode)
+{
     if (langCode.isEmpty()) {
         return _("Unknown");
     } else if (langCode == "*")
@@ -121,7 +126,7 @@ static QString languageName(const QString &langCode) {
         // lang code
 
         if (langCode.indexOf("_") != -1 &&
-            locale.country() != QLocale::AnyCountry) {
+                locale.country() != QLocale::AnyCountry) {
             countryName = locale.nativeCountryName();
             if (countryName.isEmpty()) {
                 countryName = QLocale::countryToString(locale.country());
@@ -133,7 +138,7 @@ static QString languageName(const QString &langCode) {
         } else {
             return QString(
                        C_("%1 is language name, %2 is country name", "%1 (%2)"))
-                .arg(languageName, countryName);
+                   .arg(languageName, countryName);
         }
     }
 }
@@ -141,7 +146,8 @@ static QString languageName(const QString &langCode) {
 AvailIMModel::AvailIMModel(QObject *parent) : CategorizedItemModel(parent) {}
 
 QVariant AvailIMModel::dataForCategory(const QModelIndex &index,
-                                       int role) const {
+                                       int role) const
+{
     switch (role) {
 
     case Qt::DisplayRole:
@@ -161,7 +167,8 @@ QVariant AvailIMModel::dataForCategory(const QModelIndex &index,
     }
 }
 
-QVariant AvailIMModel::dataForItem(const QModelIndex &index, int role) const {
+QVariant AvailIMModel::dataForItem(const QModelIndex &index, int role) const
+{
     const FcitxQtInputMethodEntryList &imEntryList =
         filteredIMEntryList[index.parent().row()].second;
 
@@ -186,7 +193,8 @@ QVariant AvailIMModel::dataForItem(const QModelIndex &index, int role) const {
 
 void AvailIMModel::filterIMEntryList(
     const FcitxQtInputMethodEntryList &imEntryList,
-    const FcitxQtStringKeyValueList &enabledIMList) {
+    const FcitxQtStringKeyValueList &enabledIMList)
+{
     beginResetModel();
 
     QMap<QString, int> languageMap;
@@ -216,19 +224,22 @@ void AvailIMModel::filterIMEntryList(
     endResetModel();
 }
 
-IMProxyModel::IMProxyModel(QObject *parent) : QSortFilterProxyModel(parent) {
+IMProxyModel::IMProxyModel(QObject *parent) : QSortFilterProxyModel(parent)
+{
     setDynamicSortFilter(true);
     sort(0);
 }
 
-void IMProxyModel::setFilterText(const QString &text) {
+void IMProxyModel::setFilterText(const QString &text)
+{
     if (filterText_ != text) {
         filterText_ = text;
         invalidate();
     }
 }
 
-void IMProxyModel::setShowOnlyCurrentLanguage(bool show) {
+void IMProxyModel::setShowOnlyCurrentLanguage(bool show)
+{
     if (showOnlyCurrentLanguage_ != show) {
         showOnlyCurrentLanguage_ = show;
         invalidate();
@@ -237,7 +248,8 @@ void IMProxyModel::setShowOnlyCurrentLanguage(bool show) {
 
 void IMProxyModel::filterIMEntryList(
     const FcitxQtInputMethodEntryList &imEntryList,
-    const FcitxQtStringKeyValueList &enabledIMList) {
+    const FcitxQtStringKeyValueList &enabledIMList)
+{
     languageSet_.clear();
 
     QSet<QString> enabledIMs;
@@ -253,7 +265,8 @@ void IMProxyModel::filterIMEntryList(
 }
 
 bool IMProxyModel::filterAcceptsRow(int source_row,
-                                    const QModelIndex &source_parent) const {
+                                    const QModelIndex &source_parent) const
+{
     const QModelIndex index =
         sourceModel()->index(source_row, 0, source_parent);
 
@@ -264,7 +277,8 @@ bool IMProxyModel::filterAcceptsRow(int source_row,
     return filterIM(index);
 }
 
-bool IMProxyModel::filterLanguage(const QModelIndex &index) const {
+bool IMProxyModel::filterLanguage(const QModelIndex &index) const
+{
     if (!index.isValid()) {
         return false;
     }
@@ -282,7 +296,8 @@ bool IMProxyModel::filterLanguage(const QModelIndex &index) const {
     return false;
 }
 
-bool IMProxyModel::filterIM(const QModelIndex &index) const {
+bool IMProxyModel::filterIM(const QModelIndex &index) const
+{
     QString uniqueName = index.data(FcitxIMUniqueNameRole).toString();
     QString name = index.data(Qt::DisplayRole).toString();
     QString langCode = index.data(FcitxLanguageRole).toString();
@@ -296,12 +311,11 @@ bool IMProxyModel::filterIM(const QModelIndex &index) const {
     QString lang = langCode.left(2);
     bool showOnlyCurrentLanguage =
         filterText_.isEmpty() && showOnlyCurrentLanguage_;
-
     flag =
         flag && (showOnlyCurrentLanguage
-                     ? !lang.isEmpty() && (QLocale().name().startsWith(lang) ||
-                                           languageSet_.contains(lang))
-                     : true);
+                 ? !lang.isEmpty() && (QLocale().name().startsWith(lang) ||
+                                       languageSet_.contains(lang))
+                 : true);
     if (!filterText_.isEmpty()) {
         flag = flag && (name.contains(filterText_, Qt::CaseInsensitive) ||
                         uniqueName.contains(filterText_, Qt::CaseInsensitive) ||
@@ -313,7 +327,8 @@ bool IMProxyModel::filterIM(const QModelIndex &index) const {
 }
 
 bool IMProxyModel::lessThan(const QModelIndex &left,
-                            const QModelIndex &right) const {
+                            const QModelIndex &right) const
+{
     int result = compareCategories(left, right);
     if (result < 0) {
         return true;
@@ -327,7 +342,8 @@ bool IMProxyModel::lessThan(const QModelIndex &left,
 }
 
 int IMProxyModel::compareCategories(const QModelIndex &left,
-                                    const QModelIndex &right) const {
+                                    const QModelIndex &right) const
+{
     QString l = left.data(FcitxLanguageRole).toString();
     QString r = right.data(FcitxLanguageRole).toString();
 
@@ -352,7 +368,8 @@ int IMProxyModel::compareCategories(const QModelIndex &left,
 FilteredIMModel::FilteredIMModel(Mode mode, QObject *parent)
     : QAbstractListModel(parent), mode_(mode) {}
 
-QVariant FilteredIMModel::data(const QModelIndex &index, int role) const {
+QVariant FilteredIMModel::data(const QModelIndex &index, int role) const
+{
     if (!index.isValid() || index.row() >= filteredIMEntryList_.size()) {
         return QVariant();
     }
@@ -382,9 +399,9 @@ QVariant FilteredIMModel::data(const QModelIndex &index, int role) const {
 
     case FcitxIMLayoutRole: {
         auto iter = std::find_if(enabledIMList_.begin(), enabledIMList_.end(),
-                                 [&imEntry](const FcitxQtStringKeyValue &item) {
-                                     return item.key() == imEntry.uniqueName();
-                                 });
+        [&imEntry](const FcitxQtStringKeyValue & item) {
+            return item.key() == imEntry.uniqueName();
+        });
         if (iter != enabledIMList_.end()) {
             return iter->value();
         }
@@ -396,7 +413,8 @@ QVariant FilteredIMModel::data(const QModelIndex &index, int role) const {
     }
 }
 
-int FilteredIMModel::rowCount(const QModelIndex &parent) const {
+int FilteredIMModel::rowCount(const QModelIndex &parent) const
+{
     if (parent.isValid()) {
         return 0;
     }
@@ -404,18 +422,20 @@ int FilteredIMModel::rowCount(const QModelIndex &parent) const {
     return filteredIMEntryList_.count();
 }
 
-QHash<int, QByteArray> FilteredIMModel::roleNames() const {
+QHash<int, QByteArray> FilteredIMModel::roleNames() const
+{
     return {{Qt::DisplayRole, "name"},
-            {FcitxIMUniqueNameRole, "uniqueName"},
-            {FcitxLanguageRole, "languageCode"},
-            {FcitxLanguageNameRole, "language"},
-            {FcitxIMConfigurableRole, "configurable"},
-            {FcitxIMLayoutRole, "layout"}};
+        {FcitxIMUniqueNameRole, "uniqueName"},
+        {FcitxLanguageRole, "languageCode"},
+        {FcitxLanguageNameRole, "language"},
+        {FcitxIMConfigurableRole, "configurable"},
+        {FcitxIMLayoutRole, "layout"}};
 }
 
 void FilteredIMModel::filterIMEntryList(
     const FcitxQtInputMethodEntryList &imEntryList,
-    const FcitxQtStringKeyValueList &enabledIMList) {
+    const FcitxQtStringKeyValueList &enabledIMList)
+{
     beginResetModel();
 
     filteredIMEntryList_.clear();
@@ -453,9 +473,10 @@ void FilteredIMModel::filterIMEntryList(
     endResetModel();
 }
 
-void FilteredIMModel::move(int from, int to) {
+void FilteredIMModel::move(int from, int to)
+{
     if (from < 0 || from >= filteredIMEntryList_.size() || to < 0 ||
-        to >= filteredIMEntryList_.size()) {
+            to >= filteredIMEntryList_.size()) {
         return;
     }
     beginMoveRows(QModelIndex(), from, from, QModelIndex(),
@@ -465,7 +486,8 @@ void FilteredIMModel::move(int from, int to) {
     emit imListChanged(filteredIMEntryList_);
 }
 
-void FilteredIMModel::remove(int idx) {
+void FilteredIMModel::remove(int idx)
+{
     if (idx < 0 || idx >= filteredIMEntryList_.size()) {
         return;
     }
