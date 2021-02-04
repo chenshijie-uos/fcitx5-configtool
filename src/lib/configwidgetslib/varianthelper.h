@@ -13,19 +13,13 @@
 namespace fcitx {
 namespace kcm {
 
-QVariant valueFromVariant(const QVariant &value,
-                          const QString &path = QString());
+QVariant readVariant(const QVariant &value, const QString &path);
 
-QString valueFromVariantMapByPath(const QVariantMap &map,
-                                  const QStringList &path, int depth);
+bool readBool(const QVariantMap &map, const QString &path);
 
-QString valueFromVariantMap(const QVariantMap &map, const QString &path);
+QString readString(const QVariantMap &map, const QString &path);
 
-void valueToVariantMapByPath(QVariantMap &map, const QStringList &path,
-                             const QVariant &value, int depth);
-
-void valueToVariantMap(QVariantMap &map, const QString &path,
-                       const QVariant &value);
+void writeVariant(QVariantMap &map, const QString &path, const QVariant &value);
 
 } // namespace kcm
 } // namespace fcitx

@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  */
-import QtQuick 2.14
-import QtQuick.Controls 2.14
-import QtQuick.Layouts 1.14
+import QtQuick 2.12
+import QtQuick.Controls 2.12
+import QtQuick.Layouts 1.12
 import QtQuick.Dialogs 1.1 as QtDialogs
+import org.kde.kirigami 2.10 as Kirigami
 
 Button {
+    implicitWidth: Kirigami.Units.gridUnit * 10
+
     property variant rawValue
     property bool needsSave: text != rawValue
 

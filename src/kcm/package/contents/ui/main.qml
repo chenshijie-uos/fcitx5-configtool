@@ -4,14 +4,15 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  */
-import QtQuick 2.14
-import QtQuick.Layouts 1.14
-import QtQuick.Controls 2.14
+import QtQuick 2.12
+import QtQuick.Layouts 1.12
+import QtQuick.Controls 2.12
 import org.kde.kirigami 2.10 as Kirigami
 import org.kde.kcm 1.2 as KCM
 
 KCM.ScrollViewKCM {
     id: root
+    Kirigami.ColumnView.fillWidth: true
 
     function checkInputMethod() {
         var firstIM = imList.model.imAt(0);
@@ -23,7 +24,7 @@ KCM.ScrollViewKCM {
         }
     }
 
-    implicitWidth: Kirigami.Units.gridUnit * 40
+    implicitWidth: Kirigami.Units.gridUnit * 50
     implicitHeight: Kirigami.Units.gridUnit * 25
 
     view: ListView {

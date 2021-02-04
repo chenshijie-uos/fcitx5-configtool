@@ -24,11 +24,11 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(impage_, &IMPage::changed, this, [this]() {
         qCDebug(KCM_FCITX5) << "IMPage changed";
-        emit changed(true);
+        Q_EMIT changed(true);
     });
     connect(addonPage_, &AddonSelector::changed, this, [this]() {
         qCDebug(KCM_FCITX5) << "AddonSelector changed";
-        emit changed(true);
+        Q_EMIT changed(true);
     });
     auto configPageWrapper = new VerticalScrollArea;
     configPageWrapper->setWidget(configPage_);
@@ -36,12 +36,19 @@ MainWindow::MainWindow(QWidget *parent)
     pageWidget->addTab(configPageWrapper, _("Global Options"));
     pageWidget->addTab(addonPage_, _("Addons"));
     connect(configPage_, &ConfigWidget::changed, this,
-            [this]() { emit changed(true); });
+            [this]() { Q_EMIT changed(true); });
 
     connect(this, &MainWindow::changed, this, &MainWindow::handleChanged);
 
     connect(buttonBox, &QDialogButtonBox::clicked, this, &MainWindow::clicked);
     load();
+
+    buttonBox->button(QDialogButtonBox::Apply)->setText(_("&Apply"));
+    buttonBox->button(QDialogButtonBox::Ok)->setText(_("&OK"));
+    buttonBox->button(QDialogButtonBox::Close)->setText(_("&Close"));
+    buttonBox->button(QDialogButtonBox::Reset)->setText(_("&Reset"));
+    buttonBox->button(QDialogButtonBox::RestoreDefaults)
+        ->setText(_("Restore &Defaults"));
 }
 
 void MainWindow::handleChanged(bool changed) {
@@ -54,23 +61,24 @@ void MainWindow::load() {
     impage_->load();
     addonPage_->load();
     configPage_->load();
-    emit changed(false);
+    Q_EMIT changed(false);
 }
 
 void MainWindow::save() {
     impage_->save();
     addonPage_->save();
     configPage_->save();
-    emit changed(false);
+    Q_EMIT changed(false);
 }
 
 void MainWindow::defaults() {
     configPage_->buttonClicked(QDialogButtonBox::RestoreDefaults);
-    emit changed(true);
+    Q_EMIT changed(true);
 }
 
 void MainWindow::keyPressEvent(QKeyEvent *event) {
-    if (event->matches(QKeySequence::Cancel)) {
+    QMainWindow::keyPressEvent(event);
+    if (!event->isAccepted() && event->matches(QKeySequence::Cancel)) {
         qApp->quit();
     }
 }
@@ -78,9 +86,11 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
 void MainWindow::clicked(QAbstractButton *button) {
     QDialogButtonBox::StandardButton standardButton =
         buttonBox->standardButton(button);
-    if (standardButton == QDialogButtonBox::Apply ||
-        standardButton == QDialogButtonBox::Ok) {
+    if (standardButton == QDialogButtonBox::Apply) {
         save();
+    } else if (standardButton == QDialogButtonBox::Ok) {
+        save();
+        qApp->quit();
     } else if (standardButton == QDialogButtonBox::Close) {
         qApp->quit();
     } else if (standardButton == QDialogButtonBox::Reset) {

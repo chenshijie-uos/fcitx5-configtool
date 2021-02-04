@@ -15,6 +15,7 @@
 #include <qmath.h>
 
 #include <fcitx-utils/key.h>
+#include <fcitx-utils/misc.h>
 
 #include <X11/XKBlib.h>
 #include <X11/Xlib.h>
@@ -33,8 +34,7 @@
 #include "deadmapdata.h"
 #include "keyboardlayoutwidget.h"
 
-#define INVALID_KEYCODE ((uint)(-1))
-#define TEXT_SIZE (0.8)
+constexpr unsigned int INVALID_KEYCODE = (unsigned int)(-1);
 
 #ifndef XKB_RULES_XML_FILE
 #define XKB_RULES_XML_FILE "/usr/share/X11/xkb/rules/evdev.xml"
@@ -60,21 +60,33 @@ static bool FcitxXkbInitDefaultLayout(QStringList &layout,
 
 static bool FcitxXkbInitDefaultOption(QString &model, QString &option);
 
+static inline void FcitxXkbClearVarDefsRec(XkbRF_VarDefsRec *vdp) {
+    free(vdp->model);
+    free(vdp->layout);
+    free(vdp->variant);
+    free(vdp->options);
+}
+
 static QString FcitxXkbGetRulesName() {
     XkbRF_VarDefsRec vd;
-    char *tmp = NULL;
+    char *tmp = nullptr;
 
-    if (XkbRF_GetNamesProp(QX11Info::display(), &tmp, &vd) && tmp != NULL) {
-        return tmp;
+    if (!QX11Info::isPlatformX11()) {
+        return {};
     }
-
-    return QString();
+    if (!XkbRF_GetNamesProp(QX11Info::display(), &tmp, &vd)) {
+        return QString();
+    }
+    FcitxXkbClearVarDefsRec(&vd);
+    auto result = QString::fromUtf8(tmp);
+    free(tmp);
+    return result;
 }
 static QString FcitxXkbFindXkbRulesFile() {
     QString rulesFile;
     QString rulesName = FcitxXkbGetRulesName();
 
-    if (rulesName.isNull()) {
+    if (!rulesName.isEmpty()) {
         rulesFile = QString("%1/rules/%2.xml")
                         .arg(XKEYBOARDCONFIG_XKBBASE)
                         .arg(rulesName);
@@ -87,27 +99,25 @@ static QString FcitxXkbFindXkbRulesFile() {
 }
 
 KeyboardLayoutWidget::KeyboardLayoutWidget(QWidget *parent)
-    : QWidget(parent), ratio(1.0), trackModifiers(false) {
-    uint i = 0;
-    for (i = 0; i < sizeof(deadMapData) / sizeof(deadMapData[0]); i++)
+    : QWidget(parent), groupLevels(pGroupsLevels) {
+    for (unsigned int i = 0; i < FCITX_ARRAY_SIZE(deadMapData); i++) {
         deadMap[deadMapData[i].dead] = deadMapData[i].nondead;
+    }
 
-    xkb = XkbGetKeyboard(QX11Info::display(),
-                         XkbGBN_GeometryMask | XkbGBN_KeyNamesMask |
-                             XkbGBN_OtherNamesMask | XkbGBN_SymbolsMask |
-                             XkbGBN_IndicatorMapMask,
-                         XkbUseCoreKbd);
+    if (QX11Info::isPlatformX11()) {
+        xkb = XkbGetKeyboard(QX11Info::display(),
+                             XkbGBN_GeometryMask | XkbGBN_KeyNamesMask |
+                                 XkbGBN_OtherNamesMask | XkbGBN_SymbolsMask |
+                                 XkbGBN_IndicatorMapMask,
+                             XkbUseCoreKbd);
+    }
 
-    if (!xkb)
+    if (!xkb) {
         return;
-
-    groupLevels = pGroupsLevels;
+    }
 
     XkbGetNames(QX11Info::display(), XkbAllNamesMask, xkb);
-
     l3mod = XkbKeysymToModifiers(QX11Info::display(), XK_ISO_Level3_Shift);
-
-    xkbOnDisplay = true;
 
     alloc();
     init();
@@ -116,21 +126,23 @@ KeyboardLayoutWidget::KeyboardLayoutWidget(QWidget *parent)
     setFocusPolicy(Qt::StrongFocus);
 }
 
+void FreeXkbRF(XkbRF_RulesPtr rule) { XkbRF_Free(rule, true); }
+
 void KeyboardLayoutWidget::setGroup(int group) {
     XkbRF_VarDefsRec rdefs;
     XkbComponentNamesRec rnames;
     QString rulesPath = "./rules/evdev";
     char c[] = "C";
-    XkbRF_RulesPtr rules =
-        XkbRF_Load(rulesPath.toLocal8Bit().data(), c, True, True);
-    if (rules == NULL) {
+    UniqueCPtr<XkbRF_RulesRec, FreeXkbRF> rules{
+        XkbRF_Load(rulesPath.toLocal8Bit().data(), c, True, True)};
+    if (!rules) {
         rulesPath = FcitxXkbFindXkbRulesFile();
         if (rulesPath.endsWith(".xml")) {
             rulesPath.chop(4);
         }
-        rules = XkbRF_Load(rulesPath.toLocal8Bit().data(), c, True, True);
+        rules.reset(XkbRF_Load(rulesPath.toLocal8Bit().data(), c, True, True));
     }
-    if (rules == NULL) {
+    if (!rules) {
         return;
     }
     memset(&rdefs, 0, sizeof(XkbRF_VarDefsRec));
@@ -152,57 +164,79 @@ void KeyboardLayoutWidget::setGroup(int group) {
                         : NULL;
     rdefs.options =
         !option.isNull() ? strdup(option.toUtf8().constData()) : NULL;
-    XkbRF_GetComponents(rules, &rdefs, &rnames);
-    free(rdefs.model);
-    free(rdefs.layout);
-    free(rdefs.variant);
-    free(rdefs.options);
+    XkbRF_GetComponents(rules.get(), &rdefs, &rnames);
+    FcitxXkbClearVarDefsRec(&rdefs);
 
     setKeyboard(&rnames);
+
+    free(rnames.keymap);
+    free(rnames.keycodes);
+    free(rnames.types);
+    free(rnames.compat);
+    free(rnames.symbols);
+    free(rnames.geometry);
 }
 
 static bool FcitxXkbInitDefaultOption(QString &model, QString &option) {
+    if (!QX11Info::isPlatformX11()) {
+        return false;
+    }
+
     Display *dpy = QX11Info::display();
     XkbRF_VarDefsRec vd;
-    char *tmp = NULL;
+    char *tmp = nullptr;
 
-    if (!XkbRF_GetNamesProp(dpy, &tmp, &vd) || !tmp)
+    if (!XkbRF_GetNamesProp(dpy, &tmp, &vd)) {
         return false;
-    if (!vd.model || !vd.layout)
-        return false;
-    if (vd.model)
+    }
+
+    if (vd.model) {
         model = vd.model;
-    else
+    } else {
         model = QString();
-    if (vd.options)
+    }
+    if (vd.options) {
         option = vd.options;
-    else
+    } else {
         option = QString();
+    }
+
+    free(tmp);
+    FcitxXkbClearVarDefsRec(&vd);
     return true;
 }
 
 static bool FcitxXkbInitDefaultLayout(QStringList &layout,
                                       QStringList &variant) {
+    if (!QX11Info::isPlatformX11()) {
+        return false;
+    }
     Display *dpy = QX11Info::display();
     XkbRF_VarDefsRec vd;
     char *tmp = NULL;
 
-    if (!XkbRF_GetNamesProp(dpy, &tmp, &vd) || !tmp)
+    if (!XkbRF_GetNamesProp(dpy, &tmp, &vd)) {
         return false;
+    }
     if (!vd.model || !vd.layout)
         return false;
 
     QString variantString, layoutString;
-    if (vd.layout)
+    if (vd.layout) {
         layoutString = vd.layout;
-    else
+    } else {
         layoutString = QString();
-    if (vd.variant)
+    }
+    if (vd.variant) {
         variantString = vd.variant;
-    else
+    } else {
         variantString = QString();
+    }
     layout = layoutString.split(',');
     variant = variantString.split(',');
+
+    free(tmp);
+    FcitxXkbClearVarDefsRec(&vd);
     return true;
 }
 
@@ -227,8 +261,7 @@ void KeyboardLayoutWidget::setKeyboardLayout(const QString &layout,
     memset(&rdefs, 0, sizeof(XkbRF_VarDefsRec));
     memset(&rnames, 0, sizeof(XkbComponentNamesRec));
     QString model, option;
-    if (!FcitxXkbInitDefaultOption(model, option))
-        return;
+    FcitxXkbInitDefaultOption(model, option);
 
     rdefs.model = !model.isNull() ? strdup(model.toUtf8().constData()) : NULL;
     rdefs.layout =
@@ -238,25 +271,29 @@ void KeyboardLayoutWidget::setKeyboardLayout(const QString &layout,
     rdefs.options =
         !option.isNull() ? strdup(option.toUtf8().constData()) : NULL;
     XkbRF_GetComponents(rules, &rdefs, &rnames);
-    free(rdefs.model);
-    free(rdefs.layout);
-    free(rdefs.variant);
-    free(rdefs.options);
+
+    FcitxXkbClearVarDefsRec(&rdefs);
 
     setKeyboard(&rnames);
 }
 
 void KeyboardLayoutWidget::setKeyboard(XkbComponentNamesPtr names) {
     release();
-    if (xkb)
+    if (xkb) {
         XkbFreeKeyboard(xkb, 0, true);
+        xkb = nullptr;
+    }
+
+    if (!QX11Info::isPlatformX11()) {
+        return;
+    }
+
     if (names) {
         xkb = XkbGetKeyboardByName(
             QX11Info::display(), XkbUseCoreKbd, names, 0,
             XkbGBN_GeometryMask | XkbGBN_KeyNamesMask | XkbGBN_OtherNamesMask |
                 XkbGBN_ClientSymbolsMask | XkbGBN_IndicatorMapMask,
             false);
-        xkbOnDisplay = false;
     } else {
         xkb = XkbGetKeyboard(QX11Info::display(),
                              XkbGBN_GeometryMask | XkbGBN_KeyNamesMask |
@@ -264,7 +301,6 @@ void KeyboardLayoutWidget::setKeyboard(XkbComponentNamesPtr names) {
                                  XkbGBN_IndicatorMapMask,
                              XkbUseCoreKbd);
         XkbGetNames(QX11Info::display(), XkbAllNamesMask, xkb);
-        xkbOnDisplay = true;
     }
 
     if (xkb == NULL)
@@ -279,28 +315,20 @@ void KeyboardLayoutWidget::setKeyboard(XkbComponentNamesPtr names) {
 
 void KeyboardLayoutWidget::alloc() {
     physicalIndicators.clear();
-    physicalIndicatorsSize = xkb->indicators->phys_indicators + 1;
+    int physicalIndicatorsSize = xkb->indicators->phys_indicators + 1;
     physicalIndicators.reserve(physicalIndicatorsSize);
     for (int i = 0; i < physicalIndicatorsSize; i++)
         physicalIndicators << NULL;
 
-    keys = new DrawingKey[xkb->max_key_code + 1];
+    keys.resize(xkb->max_key_code + 1);
 }
 
 void KeyboardLayoutWidget::release() {
     physicalIndicators.clear();
-    physicalIndicatorsSize = 0;
-    if (keys) {
-        delete[] keys;
-        keys = NULL;
-    }
+    keys.clear();
+    colors.clear();
 
-    if (colors) {
-        delete[] colors;
-        colors = NULL;
-    }
-
-    foreach (DrawingItem *item, keyboardItems) {
+    for (const auto *item : keyboardItems) {
         switch (item->type) {
         case KEYBOARD_DRAWING_ITEM_TYPE_INVALID:
         case KEYBOARD_DRAWING_ITEM_TYPE_KEY:
@@ -339,7 +367,7 @@ void KeyboardLayoutWidget::init() {
 
     for (i = 0; i < xkb->geom->num_sections; i++) {
         XkbSectionRec *section = xkb->geom->sections + i;
-        uint priority;
+        unsigned int priority;
 
         // qDebug() << "initing section " << i << " containing " <<
         // section->num_rows << " rows\n";
@@ -360,7 +388,7 @@ void KeyboardLayoutWidget::init() {
                 XkbKeyRec *xkbkey = row->keys + k;
                 DrawingKey *key;
                 XkbShapeRec *shape = xkb->geom->shapes + xkbkey->shape_ndx;
-                uint keycode = findKeycode(xkbkey->name.name);
+                unsigned int keycode = findKeycode(xkbkey->name.name);
 
                 if (keycode == INVALID_KEYCODE)
                     continue;
@@ -433,10 +461,11 @@ void KeyboardLayoutWidget::initColors() {
     bool result;
     int i;
 
-    if (!xkb)
+    if (!xkb) {
         return;
+    }
 
-    colors = new QColor[xkb->geom->num_colors];
+    colors.resize(xkb->geom->num_colors);
 
     for (i = 0; i < xkb->geom->num_colors; i++) {
         result = parseXkbColorSpec(xkb->geom->colors[i].spec, colors[i]);
@@ -513,17 +542,18 @@ bool KeyboardLayoutWidget::parseXkbColorSpec(char *colorspec, QColor &color) {
     return true;
 }
 
-uint KeyboardLayoutWidget::findKeycode(const char *keyName) {
+unsigned int KeyboardLayoutWidget::findKeycode(const char *keyName) {
 #define KEYSYM_NAME_MAX_LENGTH 4
-    uint keycode;
+    unsigned int keycode;
     int i, j;
     XkbKeyNamePtr pkey;
     XkbKeyAliasPtr palias;
-    uint is_name_matched;
+    unsigned int is_name_matched;
     const char *src, *dst;
 
-    if (!xkb)
+    if (!xkb) {
         return INVALID_KEYCODE;
+    }
 
     pkey = xkb->names->keys + xkb->min_key_code;
     for (keycode = xkb->min_key_code; keycode <= xkb->max_key_code; keycode++) {
@@ -582,36 +612,37 @@ void KeyboardLayoutWidget::initInicatorDoodad(XkbDoodadRec *xkbdoodad,
     if (!xkb)
         return;
 
-    if (xkbdoodad->any.type == XkbIndicatorDoodad) {
-        int index;
-        Atom iname = 0;
-        Atom sname = xkbdoodad->indicator.name;
-        unsigned long phys_indicators = xkb->indicators->phys_indicators;
-        Atom *pind = xkb->names->indicators;
-
-        for (index = 0; index < XkbNumIndicators; index++) {
-            iname = *pind++;
-            /* name matches and it is real */
-            if (iname == sname && (phys_indicators & (1 << index)))
-                break;
-            if (iname == 0)
-                break;
-        }
-        if (iname == 0)
-            return;
-        else {
-            physicalIndicators[index] = &doodad;
-            /* Trying to obtain the real state, but if fail - just assume OFF */
-            if (!XkbGetNamedIndicator(QX11Info::display(), sname, NULL,
-                                      &doodad.on, NULL, NULL))
-                doodad.on = 0;
-        }
+    if (xkbdoodad->any.type != XkbIndicatorDoodad) {
+        return;
     }
+    int index;
+    Atom iname = 0;
+    Atom sname = xkbdoodad->indicator.name;
+    unsigned long phys_indicators = xkb->indicators->phys_indicators;
+    Atom *pind = xkb->names->indicators;
+
+    for (index = 0; index < XkbNumIndicators; index++) {
+        iname = *pind++;
+        /* name matches and it is real */
+        if (iname == sname && (phys_indicators & (1 << index)))
+            break;
+        if (iname == 0)
+            break;
+    }
+    if (iname == 0) {
+        return;
+    }
+    physicalIndicators[index] = &doodad;
+    /* Trying to obtain the real state, but if fail - just assume OFF */
+    if (!XkbGetNamedIndicator(QX11Info::display(), sname, NULL, &doodad.on,
+                              NULL, NULL))
+        doodad.on = 0;
 }
 
 void KeyboardLayoutWidget::generatePixmap(bool force) {
-    if (!xkb)
+    if (!xkb) {
         return;
+    }
 
     double ratioX = (double)width() / xkb->geom->width_mm;
     double ratioY = (double)height() / xkb->geom->height_mm;
@@ -631,7 +662,7 @@ void KeyboardLayoutWidget::generatePixmap(bool force) {
     painter.setCompositionMode(QPainter::CompositionMode_Source);
     painter.fillRect(image.rect(), Qt::transparent);
 
-    foreach (DrawingItem *item, keyboardItems) {
+    for (const auto *item : keyboardItems) {
         if (!xkb)
             return;
 
@@ -649,18 +680,6 @@ void KeyboardLayoutWidget::generatePixmap(bool force) {
             break;
         }
     }
-
-    /*
-    QVector<QPointF> vec;
-    vec << QPointF(20, 20);
-    vec << QPointF(200, 20);
-    vec << QPointF(200, 200);
-    vec << QPointF(20, 200);
-
-    QBrush brush(Qt::gray);
-    painter.setBrush(brush);
-    roundedPolygon(&painter, false, 20, vec);*/
-    /*image.save("/tmp/test.png", "png");*/
 }
 
 void KeyboardLayoutWidget::drawKey(QPainter *painter, DrawingKey *key) {
@@ -780,7 +799,7 @@ void KeyboardLayoutWidget::drawPolygon(QPainter *painter, QColor fill_color,
                                        XkbPointPtr xkb_points,
                                        unsigned int num_points,
                                        unsigned int radius) {
-    QVector<QPointF> points;
+    std::vector<QPointF> points;
     bool filled;
     unsigned int i;
 
@@ -799,7 +818,7 @@ void KeyboardLayoutWidget::drawPolygon(QPainter *painter, QColor fill_color,
         QPointF point;
         point.setX(xkbToPixmapCoord(xkb_x + xkb_points[i].x));
         point.setY(xkbToPixmapCoord(xkb_y + xkb_points[i].y));
-        points << point;
+        points.push_back(point);
     }
 
     roundedPolygon(painter, filled, xkbToPixmapDouble(radius), points);
@@ -896,8 +915,8 @@ void KeyboardLayoutWidget::roundedCorner(QPainterPath &path, QPointF b,
 
 void KeyboardLayoutWidget::roundedPolygon(QPainter *painter, bool filled,
                                           double radius,
-                                          const QVector<QPointF> &points) {
-    int i, j;
+                                          const std::vector<QPointF> &points) {
+    size_t i, j;
 
     QPainterPath path;
 
@@ -1002,7 +1021,7 @@ void KeyboardLayoutWidget::drawCurveRectangle(QPainter *painter, bool filled,
 
 KeyboardLayoutWidget::~KeyboardLayoutWidget() { release(); }
 
-void KeyboardLayoutWidget::drawKeyLabel(QPainter *painter, uint keycode,
+void KeyboardLayoutWidget::drawKeyLabel(QPainter *painter, unsigned int keycode,
                                         int angle, int xkb_origin_x,
                                         int xkb_origin_y, int xkb_width,
                                         int xkb_height, bool is_pressed) {
@@ -1032,14 +1051,14 @@ void KeyboardLayoutWidget::drawKeyLabel(QPainter *painter, uint keycode,
 
         /* Skip "exotic" levels like the "Ctrl" level in PC_SYSREQ */
         if (l > 0) {
-            uint mods = XkbKeyKeyType(xkb, keycode, g)->mods.mask;
+            unsigned int mods = XkbKeyKeyType(xkb, keycode, g)->mods.mask;
             if ((mods & (ShiftMask | l3mod)) == 0)
                 continue;
         }
 
         ::KeySym keysym = 0;
         if (trackModifiers) {
-            uint mods_rtrn;
+            unsigned int mods_rtrn;
 
             if (XkbTranslateKeyCode(xkb, keycode, XkbBuildCoreState(mods, g),
                                     &mods_rtrn, &keysym)) {

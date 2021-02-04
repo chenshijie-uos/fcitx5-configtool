@@ -5,15 +5,18 @@
  *
  */
 #include "main.h"
+#include "config.h"
 #include "logging.h"
 #include "qtkeytrans.h"
 #include <KAboutData>
 #include <KLocalizedString>
 #include <KPluginFactory>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QQuickItem>
 #include <QQuickRenderControl>
 #include <QQuickWindow>
+#include <QtGlobal>
 #include <config.h>
 #include <fcitx-utils/misc.h>
 #include <fcitx-utils/standardpath.h>
@@ -29,9 +32,15 @@ FcitxModule::FcitxModule(QObject *parent, const QVariantList &args)
       layoutProvider_(new LayoutProvider(dbus_, this)),
       addonModel_(new FlatAddonModel(this)),
       addonProxyModel_(new AddonProxyModel(this)) {
+#if (QT_VERSION < QT_VERSION_CHECK(5, 14, 0))
+    qmlRegisterType<FilteredIMModel>();
+    qmlRegisterType<IMProxyModel>();
+    qmlRegisterType<LanguageModel>();
+#else
     qmlRegisterAnonymousType<FilteredIMModel>("", 1);
     qmlRegisterAnonymousType<IMProxyModel>("", 1);
     qmlRegisterAnonymousType<LanguageModel>("", 1);
+#endif
 
     KAboutData *about =
         new KAboutData("org.fcitx.fcitx5.kcm", i18n("Fcitx 5"), PROJECT_VERSION,
@@ -219,7 +228,7 @@ void FcitxModule::handleAvailabilityChanged(bool avail) {
     if (avail) {
         loadAddon();
     }
-    emit availabilityChanged(avail);
+    Q_EMIT availabilityChanged(avail);
 }
 
 void FcitxModule::loadAddon() {
@@ -264,9 +273,12 @@ void FcitxModule::saveAddon() {
 
 void FcitxModule::launchExternal(const QString &uri) {
     if (uri.startsWith("fcitx://config/addon/")) {
-        auto wrapperPath =
-            stringutils::joinPath(StandardPath::global().fcitxPath("libdir"),
-                                  "fcitx5/libexec/fcitx5-qt5-gui-wrapper");
+        QString wrapperPath = FCITX5_QT5_GUI_WRAPPER;
+        if (!QFileInfo(wrapperPath).isExecutable()) {
+            wrapperPath = QString::fromStdString(stringutils::joinPath(
+                StandardPath::global().fcitxPath("libexecdir"),
+                "fcitx5-qt5-gui-wrapper"));
+        }
         QStringList args;
         if (QGuiApplication::platformName() == "xcb") {
             auto window = mainUi()->window();
@@ -288,8 +300,8 @@ void FcitxModule::launchExternal(const QString &uri) {
             }
         }
         args << uri;
-        qCDebug(KCM_FCITX5) << "Launch: " << wrapperPath.data() << args;
-        QProcess::startDetached(wrapperPath.data(), args);
+        qCDebug(KCM_FCITX5) << "Launch: " << wrapperPath << args;
+        QProcess::startDetached(wrapperPath, args);
     } else {
         // Assume this is a program path.
 #if QT_VERSION >= QT_VERSION_CHECK(5, 15, 0)
@@ -340,7 +352,8 @@ QString FcitxModule::eventToString(int keyQt, int modifiers,
     }
 
     Key key;
-    if (qApp->platformName() == "xcb" || qApp->platformName() == "wayland") {
+    if (QGuiApplication::platformName() == "xcb" ||
+        QGuiApplication::platformName().startsWith("wayland")) {
         if (keyCode) {
             key = Key::fromKeyCode(key_.code(), key_.states());
         } else {

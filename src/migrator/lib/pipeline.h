@@ -10,7 +10,6 @@
 #include "fcitx5migrator_export.h"
 #include "pipelinejob.h"
 #include <QObject>
-#include <QVector>
 
 namespace fcitx {
 
@@ -25,7 +24,7 @@ public:
     void reset();
     const std::vector<PipelineJob *> &jobs() { return jobs_; }
 
-signals:
+Q_SIGNALS:
     void finished(bool);
     void message(const QString &icon, const QString &message);
 

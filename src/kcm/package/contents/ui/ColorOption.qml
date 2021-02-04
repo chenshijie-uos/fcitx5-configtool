@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  */
-import QtQuick 2.14
-import QtQuick.Controls 2.14
-import QtQuick.Layouts 1.14
+import QtQuick 2.12
+import QtQuick.Controls 2.12
+import QtQuick.Layouts 1.12
 import QtQuick.Dialogs 1.1 as QtDialogs
 import org.kde.kirigami 2.10 as Kirigami
 
@@ -26,17 +26,11 @@ Row {
         load(rawValue)
     }
 
-    Rectangle {
-        height: button.height
-        width: height
-        color: colorDialog.color
-    }
-
     Button {
         id: button
         icon.name: "document-edit"
         text: kcm.colorToString(colorDialog.color)
-        implicitWidth: Kirigami.Units.gridUnit * 4
+        implicitWidth: Kirigami.Units.gridUnit * 10
         onClicked: colorDialog.open()
 
         QtDialogs.ColorDialog {
@@ -45,5 +39,11 @@ Row {
             title: i18nc("@title:window", "Select Color")
             showAlphaChannel: true
         }
+    }
+
+    Rectangle {
+        height: button.height
+        width: height
+        color: colorDialog.color
     }
 }

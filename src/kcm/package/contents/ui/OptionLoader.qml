@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  */
-import QtQuick 2.14
-import QtQuick.Controls 2.14
-import QtQuick.Layouts 1.14
+import QtQuick 2.12
+import QtQuick.Controls 2.12
+import QtQuick.Layouts 1.12
 import org.kde.kirigami 2.10 as Kirigami
 import "utils.js" as Utils
 
@@ -14,6 +14,7 @@ Loader {
     id: loader
 
     property variant option
+    property variant rawValue
 
     function optionSource(data) {
         if (data.type == "Boolean") {
@@ -59,7 +60,7 @@ Loader {
                 "description": option.description,
                 "defaultValue": option.defaultValue,
                 "properties": option.properties,
-                "rawValue": Utils.getRawValue(configGroup.rawValue, option.name)
+                "rawValue": rawValue
             }
             loader.setSource(optionSource(option), prop)
         }

@@ -7,6 +7,7 @@
 #include <KFontChooser>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QPushButton>
 
 #include "font.h"
 #include "fontbutton.h"
@@ -29,7 +30,7 @@ QString FontButton::fontName() { return fontPreviewLabel->text(); }
 void FontButton::setFont(const QFont &font) {
     font_ = font;
     if (font.family() != font_.family()) {
-        emit fontChanged(font_);
+        Q_EMIT fontChanged(font_);
     }
     fontPreviewLabel->setText(fontToString(font_));
     fontPreviewLabel->setFont(font_);
@@ -42,8 +43,9 @@ void FontButton::selectFont() {
     QVBoxLayout *dialogLayout = new QVBoxLayout;
     dialog.setLayout(dialogLayout);
     QDialogButtonBox *buttonBox =
-        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel |
-                             QDialogButtonBox::RestoreDefaults);
+        new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    buttonBox->button(QDialogButtonBox::Ok)->setText(_("&OK"));
+    buttonBox->button(QDialogButtonBox::Cancel)->setText(_("&Cancel"));
     dialogLayout->addWidget(chooser);
     dialogLayout->addWidget(buttonBox);
     connect(buttonBox, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);

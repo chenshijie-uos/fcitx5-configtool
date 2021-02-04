@@ -27,22 +27,30 @@ public:
     explicit ConfigWidget(const QString &uri, DBusProvider *module,
                           QWidget *parent = 0);
 
+    explicit ConfigWidget(const QMap<QString, FcitxQtConfigOptionList> &desc,
+                          QString mainType, DBusProvider *module,
+                          QWidget *parent = 0);
+
     static QDialog *configDialog(QWidget *parent, DBusProvider *module,
                                  const QString &uri,
                                  const QString &title = QString());
 
     auto dbus() { return dbus_; }
+    auto &description() const { return desc_; }
 
-signals:
+Q_SIGNALS:
     void changed();
 
-public slots:
+public Q_SLOTS:
     void load();
     void save();
     void buttonClicked(QDialogButtonBox::StandardButton);
 
+    QVariant value() const;
+    void setValue(const QVariant &variant);
+
     void requestConfig(bool sync = false);
-private slots:
+private Q_SLOTS:
     void requestConfigFinished(QDBusPendingCallWatcher *watcher);
     void doChanged();
 
@@ -60,6 +68,8 @@ private:
 
     bool dontEmitChanged_ = false;
 };
+
+ConfigWidget *getConfigWidget(QWidget *widget);
 
 } // namespace kcm
 } // namespace fcitx

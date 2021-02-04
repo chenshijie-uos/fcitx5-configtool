@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later
  *
  */
-import QtQuick 2.14
-import QtQuick.Controls 2.14
-import QtQuick.Layouts 1.14
+import QtQuick 2.12
+import QtQuick.Controls 2.12
+import QtQuick.Layouts 1.12
 import org.kde.kirigami 2.10 as Kirigami
 import "utils.js" as Utils
 
@@ -26,6 +26,15 @@ Kirigami.FormLayout {
             }
         }
         needsSave = false
+    }
+
+    function setRawValue(rawValue) {
+        for (var i = 0; i < repeater.count; i++) {
+            var loader = repeater.itemAt(i)
+            if (loader.status == Loader.Ready) {
+                loader.item.load(Utils.getRawValue(rawValue, loader.option.name))
+            }
+        }
     }
 
     function defaults() {
@@ -62,8 +71,10 @@ Kirigami.FormLayout {
             id: loader
 
             option: modelData
+            rawValue: Utils.getRawValue(configGroup.rawValue, modelData.name)
             Kirigami.FormData.isSection: modelData.isSection
-            Kirigami.FormData.label: modelData.description
+            Kirigami.FormData.label: modelData.isSection ? modelData.description : i18n("%1:", modelData.description)
+            @DISABLE_UNDER_KIRIGAMI2_5_76@ Kirigami.FormData.labelAlignment: modelData.type.startsWith("List|") ? (height > Kirigami.Units.gridUnit * 2 ? Qt.AlignTop : 0) : 0
 
             Connections {
                 target: loader.status == Loader.Ready ? loader.item : null
