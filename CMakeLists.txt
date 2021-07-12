@@ -10,11 +10,11 @@ if ("${CMAKE_BINARY_DIR}" STREQUAL "${CMAKE_SOURCE_DIR}")
           You must delete them, or cmake will refuse to work.")
 endif()
 
-project(fcitx5-configtool VERSION 5.0.2)
+project(fcitx5-configtool VERSION 5.0.5)
 
 set(QT_MIN_VERSION "5.12.0")
 find_package(ECM 1.0.0 REQUIRED NO_MODULE)
-set(CMAKE_MODULE_PATH ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake ${ECM_MODULE_PATH} ${ECM_KDE_MODULE_DIR})
 include(KDEInstallDirs)
 include(KDECMakeSettings)
 include(KDECompilerSettings)
